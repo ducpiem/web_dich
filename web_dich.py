@@ -10,7 +10,7 @@ st.set_page_config(
 
 # --- CẤU HÌNH API GEMINI ---
 # Tự động lấy Key từ hệ thống bảo mật của Streamlit
-API_KEY = st.secrets["AQ.Ab8RN6Jtdp9on99mx2jXhxseqT-Rypjersy-RA16y-pmyph89g"]
+API_KEY = st.secrets["GEMINI_API_KEY"]
 
 # TỐI ƯU TỐC ĐỘ: Lưu client vào bộ nhớ đệm vĩnh viễn của phiên làm việc
 if "gemini_client" not in st.session_state:
