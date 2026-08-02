@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 # --- CẤU HÌNH API GEMINI ---
-API_KEY = "AQ.Ab8RN6IPcFJXHkBheWMnhOgtDLFp-V314nyblKIFZL7_v6y2ug"
+API_KEY = "AQ.Ab8RN6LTQ0G70eYnTr74L78nEQLKfFPHOxplAU-ndELmIm374g"
 
 # TỐI ƯU TỐC ĐỘ: Lưu client vào bộ nhớ đệm vĩnh viễn của phiên làm việc
 if "gemini_client" not in st.session_state:
