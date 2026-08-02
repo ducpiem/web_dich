@@ -121,7 +121,7 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
     return "⚠️ Tất cả các tài khoản Gmail (API Key) của bạn đều đã tạm hết hạn mức lượt dùng. Vui lòng đợi lát nữa!"
 
 # --- GIAO DIỆN CHÍNH ---
-st.title("⚡ Trạm Dịch Thuật & Giọng Đọc AI created by DUCPM92")
+st.title("⚡ Trạm Dịch Thuật & Giọng Đọc AI")
 st.caption(f"Đang quản lý {len(list_keys)} tài khoản Gmail tự động xoay vòng phòng thủ quá tải!")
 
 gioi_tinh_doc = st.radio(
@@ -134,7 +134,7 @@ st.divider()
 
 # === PHẦN 1: HỌ NÓI GÌ? ===
 st.subheader("1️⃣ Đối tác gửi tin nhắn:")
-msg_nhan = st.text_area("Dán/Gõ tin nhắn đa  ngữ vào đây  :", height=90, placeholder="Hello! How are you today?...")
+msg_nhan = st.text_area("Dán tin nhắn đa  ngữ vào đây  :", height=90, placeholder="Hello! How are you today?...")
 
 if st.button("⬇️ Dịch sang Tiếng Việt & Đọc", use_container_width=True, type="primary"):
     if msg_nhan:
@@ -152,7 +152,7 @@ st.divider()
 
 # === PHẦN 2: BẠN TRẢ LỜI ===
 st.subheader("2️⃣ Bạn trả lời:")
-msg_gui = st.text_area("Gõ/ câu trả lời Tiếng Việt mà bạn muốn dịch sang ngôn ngữ  :", height=90, placeholder="Tôi khỏe, cảm ơn bạn...")
+msg_gui = st.text_area("Gõ câu trả lời Tiếng Việt mà bạn muốn dịch sang ngôn ngữ  :", height=90, placeholder="Tôi khỏe, cảm ơn bạn...")
 
 col_lang, col_btn = st.columns([1, 1])
 with col_lang:
