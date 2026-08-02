@@ -26,29 +26,67 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- JAVASCRIPT HỖ TRỢ COPY & HIỆN THÔNG BÁO TRÊN MOBILE ---
+# --- JAVASCRIPT HỖ TRỢ DÁN, XÓA & COPY TRÊN MOBILE ---
 st.markdown(
     """
     <script>
+    // Hàm Copy kết quả ra bộ nhớ tạm
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(() => {
-            // Tạo thông báo nhỏ nổi lên màn hình
-            const toast = document.createElement('div');
-            toast.innerText = '📋 Đã copy vào bộ nhớ tạm!';
-            toast.style.position = 'fixed';
-            toast.style.bottom = '30px';
-            toast.style.left = '50%';
-            toast.style.transform = 'translateX(-50%)';
-            toast.style.background = '#28a745';
-            toast.style.color = 'white';
-            toast.style.padding = '10px 20px';
-            toast.style.borderRadius = '20px';
-            toast.style.zIndex = '99999';
-            toast.style.fontSize = '14px';
-            toast.style.boxShadow = '0px 4px 10px rgba(0,0,0,0.3)';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
+            showToast('📋 Đã copy kết quả vào bộ nhớ tạm!');
         });
+    }
+
+    // Hàm Dán nhanh từ bộ nhớ tạm vào ô nhập liệu
+    async function pasteToBox(boxType) {
+        try {
+            const text = await navigator.clipboard.readText();
+            const doc = window.parent.document;
+            const textareas = doc.querySelectorAll('textarea');
+            
+            // Xác định ô text_area tương ứng (Ô 0 là đối tác, Ô tiếp theo là phần trả lời)
+            let target = (boxType === 'nhan') ? textareas[0] : textareas[textareas.length > 2 ? 2 : 1];
+            
+            if (target) {
+                target.value = text;
+                target.dispatchEvent(new Event('input', { bubbles: true }));
+                showToast('📋 Đã dán nội dung thành công!');
+            }
+        } catch (err) {
+            alert('Trình duyệt chưa cho phép đọc Clipboard. Hãy cấp quyền hoặc dùng thao tác giữ tay để dán!');
+        }
+    }
+
+    // Hàm Xóa nhanh nội dung ô nhập liệu
+    function clearBox(boxType) {
+        const doc = window.parent.document;
+        const textareas = doc.querySelectorAll('textarea');
+        let target = (boxType === 'nhan') ? textareas[0] : textareas[textareas.length > 2 ? 2 : 1];
+        
+        if (target) {
+            target.value = '';
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            showToast('🗑️ Đã xóa nội dung!');
+        }
+    }
+
+    // Hiển thị thông báo nhỏ nổi trên màn hình
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.innerText = message;
+        toast.style.position = 'fixed';
+        toast.style.bottom = '30px';
+        toast.style.left = '50%';
+        toast.style.transform = 'translateX(-50%)';
+        toast.style.background = '#28a745';
+        toast.style.color = 'white';
+        toast.style.padding = '10px 20px';
+        toast.style.borderRadius = '20px';
+        toast.style.zIndex = '99999';
+        toast.style.fontSize = '14px';
+        toast.style.boxShadow = '0px 4px 10px rgba(0,0,0,0.3)';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
     }
     </script>
     """,
@@ -168,13 +206,15 @@ gioi_tinh_doc = st.radio(
 st.divider()
 
 # === PHẦN 1: HỌ NÓI GÌ? ===
-col_h1, col_b1 = st.columns([3, 1])
+col_h1, col_b1 = st.columns([2, 2])
 with col_h1:
     st.subheader("1️⃣ Đối tác gửi tin nhắn:")
 with col_b1:
+    # Nút Dán và Xóa nhanh cho Ô 1
     st.markdown("""
-        <div style="text-align: right; padding-top: 8px;">
-            <span style="font-size: 11px; background: #333; color: #aaa; padding: 4px 8px; border-radius: 4px;">📥 Ô nhập liệu</span>
+        <div style="text-align: right; padding-top: 6px;">
+            <button onclick="pasteToBox('nhan')" style="background: #2b313e; color: #fff; border: 1px solid #555; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 4px;">📋 Dán</button>
+            <button onclick="clearBox('nhan')" style="background: #2b313e; color: #ff4b4b; border: 1px solid #555; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;">🗑️ Xóa</button>
         </div>
     """, unsafe_allow_html=True)
 
@@ -192,7 +232,6 @@ if st.session_state.ket_qua_vi:
     st.info("**Ý nghĩa Tiếng Việt:**")
     st.text_area("Kết quả tiếng Việt:", value=st.session_state.ket_qua_vi, height=80, key="txt_vi_out")
     
-    # Nút COPY kết quả siêu nhỏ gọn ở góc phải
     st.markdown(f"""
         <div style="text-align: right; margin-top: -6px; margin-bottom: 15px;">
             <button onclick="copyToClipboard(`{st.session_state.ket_qua_vi.replace('`', '\\`')}`)" style="background: #ff4b4b; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer;">📋 Copy Kết Quả</button>
@@ -206,13 +245,15 @@ if st.session_state.ket_qua_vi:
 st.divider()
 
 # === PHẦN 2: BẠN TRẢ LỜI ===
-col_h2, col_b2 = st.columns([3, 1])
+col_h2, col_b2 = st.columns([2, 2])
 with col_h2:
     st.subheader("2️⃣ Bạn trả lời:")
 with col_b2:
+    # Nút Dán và Xóa nhanh cho Ô 2
     st.markdown("""
-        <div style="text-align: right; padding-top: 8px;">
-            <span style="font-size: 11px; background: #333; color: #aaa; padding: 4px 8px; border-radius: 4px;">📤 Ô soạn thảo</span>
+        <div style="text-align: right; padding-top: 6px;">
+            <button onclick="pasteToBox('gui')" style="background: #2b313e; color: #fff; border: 1px solid #555; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 4px;">📋 Dán</button>
+            <button onclick="clearBox('gui')" style="background: #2b313e; color: #ff4b4b; border: 1px solid #555; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;">🗑️ Xóa</button>
         </div>
     """, unsafe_allow_html=True)
 
@@ -227,7 +268,7 @@ with col_btn:
 
 if btn_dich_gui and msg_gui:
     with st.spinner("AI đang dịch và tạo giọng đọc..."):
-        st.session_state.ket_qua_NN = dich_van_ban(msg_gui, huong_dich="out", ngon_ngu_dich=lang_select)
+        st.session_state.ket_qua_NN = dich_van_ban(msg_gui, huong_duch="out", ngon_ngu_dich=lang_select)
         ma_giong_ngoai_ngu = VOICE_MAP[lang_select][gioi_tinh_doc]
         st.session_state.audio_NN = tao_am_thanh(st.session_state.ket_qua_NN, ma_giong_ngoai_ngu)
 
@@ -236,7 +277,6 @@ if st.session_state.ket_qua_NN:
     st.success("**Kết quả dịch ngoại ngữ:**")
     st.text_area("Kết quả dịch:", value=st.session_state.ket_qua_NN, height=80, key="txt_nn_out")
     
-    # Nút COPY kết quả siêu nhỏ gọn ở góc phải
     st.markdown(f"""
         <div style="text-align: right; margin-top: -6px; margin-bottom: 15px;">
             <button onclick="copyToClipboard(`{st.session_state.ket_qua_NN.replace('`', '\\`')}`)" style="background: #ff4b4b; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer;">📋 Copy Kết Quả</button>
