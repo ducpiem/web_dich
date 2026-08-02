@@ -26,6 +26,35 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# --- JAVASCRIPT HỖ TRỢ COPY & HIỆN THÔNG BÁO TRÊN MOBILE ---
+st.markdown(
+    """
+    <script>
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Tạo thông báo nhỏ nổi lên màn hình
+            const toast = document.createElement('div');
+            toast.innerText = '📋 Đã copy vào bộ nhớ tạm!';
+            toast.style.position = 'fixed';
+            toast.style.bottom = '30px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.background = '#28a745';
+            toast.style.color = 'white';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '20px';
+            toast.style.zIndex = '99999';
+            toast.style.fontSize = '14px';
+            toast.style.boxShadow = '0px 4px 10px rgba(0,0,0,0.3)';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        });
+    }
+    </script>
+    """,
+    unsafe_allow_html=True
+)
+
 # --- QUẢN LÝ NHIỀU API KEY XOAY VÒNG ---
 if "GEMINI_KEYS" in st.secrets:
     list_keys = st.secrets["GEMINI_KEYS"]
@@ -39,7 +68,7 @@ def get_current_client():
     current_key = list_keys[st.session_state.key_index].strip()
     return genai.Client(api_key=current_key)
 
-# --- LƯU TRỮ TRẠNG THÁI KẾT QUẢ TRÊN MOBILE ---
+# --- LƯU TRỮ TRẠNG THÁI KẾT QUẢ ---
 if "ket_qua_vi" not in st.session_state:
     st.session_state.ket_qua_vi = ""
 if "audio_vi" not in st.session_state:
@@ -138,21 +167,38 @@ gioi_tinh_doc = st.radio(
 
 st.divider()
 
-# === PHẦN 1: HỌ NÔI GÌ? ===
-st.subheader("1️⃣ Đối tác gửi tin nhắn:")
-msg_nhan = st.text_area("Dán tin nhắn ngoại ngữ vào đây:", height=90, placeholder="Hello! How are you today?...")
+# === PHẦN 1: HỌ NÓI GÌ? ===
+col_h1, col_b1 = st.columns([3, 1])
+with col_h1:
+    st.subheader("1️⃣ Đối tác gửi tin nhắn:")
+with col_b1:
+    st.markdown("""
+        <div style="text-align: right; padding-top: 8px;">
+            <span style="font-size: 11px; background: #333; color: #aaa; padding: 4px 8px; border-radius: 4px;">📥 Ô nhập liệu</span>
+        </div>
+    """, unsafe_allow_html=True)
 
-if st.button("⬇️ Dịch sang Tiếng Việt & Đọc", use_container_width=True, type="primary"):
+msg_nhan = st.text_area("Dán tin nhắn ngoại ngữ vào đây:", height=90, placeholder="Hello! How are you today?...", key="input_nhan")
+
+if st.button("⬇️ Dịch sang Tiếng Việt & Đọc", use_container_width=True, type="primary", key="btn_dich_1"):
     if msg_nhan:
         with st.spinner("AI đang dịch và tạo giọng đọc..."):
             st.session_state.ket_qua_vi = dich_van_ban(msg_nhan, huong_dich="vi")
             ma_giong_vi = VOICE_MAP["Tiếng Việt"][gioi_tinh_doc]
             st.session_state.audio_vi = tao_am_thanh(st.session_state.ket_qua_vi, ma_giong_vi)
 
-# Hiển thị kết quả phần 1 nếu có
+# Hiển thị kết quả phần 1
 if st.session_state.ket_qua_vi:
     st.info("**Ý nghĩa Tiếng Việt:**")
-    st.text_area("Kết quả tiếng Việt (Chạm để copy):", value=st.session_state.ket_qua_vi, height=80, key="txt_vi_out")
+    st.text_area("Kết quả tiếng Việt:", value=st.session_state.ket_qua_vi, height=80, key="txt_vi_out")
+    
+    # Nút COPY kết quả siêu nhỏ gọn ở góc phải
+    st.markdown(f"""
+        <div style="text-align: right; margin-top: -6px; margin-bottom: 15px;">
+            <button onclick="copyToClipboard(`{st.session_state.ket_qua_vi.replace('`', '\\`')}`)" style="background: #ff4b4b; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer;">📋 Copy Kết Quả</button>
+        </div>
+    """, unsafe_allow_html=True)
+    
     if st.session_state.audio_vi:
         st.caption("🔊 Nghe thử giọng đọc Tiếng Việt:")
         st.audio(st.session_state.audio_vi, format="audio/mp3")
@@ -160,15 +206,24 @@ if st.session_state.ket_qua_vi:
 st.divider()
 
 # === PHẦN 2: BẠN TRẢ LỜI ===
-st.subheader("2️⃣ Bạn trả lời:")
-msg_gui = st.text_area("Gõ câu trả lời Tiếng Việt:", height=90, placeholder="Tôi khỏe, cảm ơn bạn...")
+col_h2, col_b2 = st.columns([3, 1])
+with col_h2:
+    st.subheader("2️⃣ Bạn trả lời:")
+with col_b2:
+    st.markdown("""
+        <div style="text-align: right; padding-top: 8px;">
+            <span style="font-size: 11px; background: #333; color: #aaa; padding: 4px 8px; border-radius: 4px;">📤 Ô soạn thảo</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+msg_gui = st.text_area("Gõ câu trả lời Tiếng Việt:", height=90, placeholder="Tôi khỏe, cảm ơn bạn...", key="input_gui")
 
 col_lang, col_btn = st.columns([1, 1])
 with col_lang:
     lang_select = st.selectbox("Chọn ngôn ngữ dịch sang:", list(VOICE_MAP.keys())[1:])
 with col_btn:
     st.write("") 
-    btn_dich_gui = st.button("⬇️ Dịch để Gửi & Đọc mẫu", use_container_width=True, type="primary")
+    btn_dich_gui = st.button("⬇️ Dịch để Gửi & Đọc mẫu", use_container_width=True, type="primary", key="btn_dich_2")
 
 if btn_dich_gui and msg_gui:
     with st.spinner("AI đang dịch và tạo giọng đọc..."):
@@ -176,10 +231,17 @@ if btn_dich_gui and msg_gui:
         ma_giong_ngoai_ngu = VOICE_MAP[lang_select][gioi_tinh_doc]
         st.session_state.audio_NN = tao_am_thanh(st.session_state.ket_qua_NN, ma_giong_ngoai_ngu)
 
-# Hiển thị kết quả phần 2 dưới dạng text_area tối ưu cho điện thoại
+# Hiển thị kết quả phần 2
 if st.session_state.ket_qua_NN:
-    st.success("**Kết quả dịch ngoại ngữ (Chạm vào ô dưới để copy nhanh trên điện thoại):**")
+    st.success("**Kết quả dịch ngoại ngữ:**")
     st.text_area("Kết quả dịch:", value=st.session_state.ket_qua_NN, height=80, key="txt_nn_out")
+    
+    # Nút COPY kết quả siêu nhỏ gọn ở góc phải
+    st.markdown(f"""
+        <div style="text-align: right; margin-top: -6px; margin-bottom: 15px;">
+            <button onclick="copyToClipboard(`{st.session_state.ket_qua_NN.replace('`', '\\`')}`)" style="background: #ff4b4b; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer;">📋 Copy Kết Quả</button>
+        </div>
+    """, unsafe_allow_html=True)
     
     if st.session_state.audio_NN:
         st.caption(f"🔊 Nghe thử giọng phát âm ({lang_select} - {gioi_tinh_doc}):")
