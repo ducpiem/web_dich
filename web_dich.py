@@ -10,13 +10,13 @@ st.set_page_config(
     page_icon="⚡",
     layout="centered"
 )
-
 # === DIỆT TẬN GỐC BẢNG CLEAR CACHE KHI BẤM CTRL+C ===
 st.markdown(
     """
     <script>
     const doc = window.parent.document;
     doc.addEventListener('keydown', function(e) {
+        // Nếu bấm chữ C (hoặc Shift+C) mà không ở trong ô nhập liệu -> Chặn lệnh của Streamlit
         if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
             e.stopPropagation();
         }
