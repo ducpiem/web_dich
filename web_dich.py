@@ -11,76 +11,77 @@ st.set_page_config(
     layout="centered"
 )
 
-# === CSS & JAVASCRIPT: NÚT NỔI Ở GÓC DƯỚI KHUNG NHẬP LIỆU (Y HỆT HÌNH MẪU) ===
+# === CSS & JAVASCRIPT: GẮN NÚT COPY/PASTE/XÓA VÀO TẤT CẢ CÁC Ô ===
 st.markdown(
     """
     <style>
-    /* Định vị khung nhập liệu làm chuẩn */
+    /* Chỉnh sửa để ô nhập liệu có khoảng trống phía dưới cho nút */
     div[data-testid="stTextArea"] {
         position: relative !important;
     }
-    
-    /* Chống chữ bị đè lên các nút ở góc dưới bên phải */
     div[data-testid="stTextArea"] textarea {
-        padding-right: 90px !important;
-        padding-bottom: 30px !important;
+        padding-bottom: 45px !important;
     }
 
-    /* Khung chứa nút nằm nổi góc dưới bên phải */
+    /* Vị trí khung chứa 3 nút nổi */
     .floating-btn-container {
         position: absolute;
-        right: 10px;
-        bottom: 10px;
+        right: 8px;
+        bottom: 8px;
         display: flex;
         gap: 6px;
         z-index: 99;
     }
 
-    /* Phong cách nút icon bo góc màu tối giống ảnh */
+    /* Thiết kế nút bấm giống ảnh (Tối, sang trọng, bo góc) */
     .floating-btn {
-        background-color: rgba(30, 34, 45, 0.85);
+        background-color: rgba(30, 34, 45, 0.9);
         color: #e0e0e0;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 8px;
-        padding: 6px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        padding: 5px 8px;
         font-size: 12px;
         font-weight: 500;
         cursor: pointer;
-        backdrop-filter: blur(4px);
-        transition: all 0.2s ease-in-out;
         display: flex;
         align-items: center;
         gap: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        transition: all 0.2s;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     }
-
     .floating-btn:hover {
-        background-color: rgba(50, 58, 75, 0.95);
-        border-color: rgba(255, 255, 255, 0.3);
-        color: #ffffff;
-        transform: translateY(-1px);
+        background-color: rgba(50, 58, 75, 1);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.4);
     }
-
     .floating-btn:active {
-        transform: translateY(1px);
+        transform: scale(0.95);
     }
     </style>
 
     <script>
     const doc = window.parent.document;
 
-    // Chặn phím C mở bảng clear cache Streamlit
+    // Chặn phím C mở bảng clear cache
     doc.addEventListener('keydown', function(e) {
         if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
             e.stopPropagation();
         }
     }, true);
 
-    // Hàm tự động gắn nút Dán & Xóa vào góc dưới các ô nhập liệu
-    function injectFloatingButtons() {
-        const containers = doc.querySelectorAll('div[data-testid="stTextArea"]');
+    // Mẹo bắt buộc Streamlit cập nhật dữ liệu khi dùng JavaScript
+    function setNativeValue(element, value) {
+        const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+        valueSetter.call(element, value);
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // Hàm tiêm 3 nút vào TẤT CẢ các ô nhập liệu
+    function injectButtons() {
+        const textAreas = doc.querySelectorAll('div[data-testid="stTextArea"]');
         
-        containers.forEach((container) => {
+        textAreas.forEach((container) => {
+            // Nếu đã gắn nút rồi thì bỏ qua
             if (container.querySelector('.floating-btn-container')) return;
             
             const textarea = container.querySelector('textarea');
@@ -89,46 +90,51 @@ st.markdown(
             const btnBox = doc.createElement('div');
             btnBox.className = 'floating-btn-container';
 
-            // Nút Dán (Paste)
+            // 1. NÚT COPY
+            const copyBtn = doc.createElement('button');
+            copyBtn.className = 'floating-btn';
+            copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy`;
+            copyBtn.onclick = (e) => {
+                e.preventDefault();
+                navigator.clipboard.writeText(textarea.value).then(() => {
+                    const originalHTML = copyBtn.innerHTML;
+                    copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff00" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> OK`;
+                    setTimeout(() => copyBtn.innerHTML = originalHTML, 1500);
+                });
+            };
+
+            // 2. NÚT DÁN (PASTE)
             const pasteBtn = doc.createElement('button');
             pasteBtn.className = 'floating-btn';
-            pasteBtn.type = 'button';
-            pasteBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg> Dán`;
+            pasteBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg> Dán`;
             pasteBtn.onclick = async (e) => {
                 e.preventDefault();
-                e.stopPropagation();
                 try {
                     const text = await navigator.clipboard.readText();
-                    textarea.value = text;
-                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                    textarea.dispatchEvent(new Event('change', { bubbles: true }));
-                } catch (err) {
-                    textarea.focus();
-                    alert('Chạm giữ trực tiếp vào ô để chọn "Dán" nếu trình duyệt chưa cấp quyền Clipboard!');
+                    setNativeValue(textarea, text);
+                } catch(err) {
+                    alert('Lỗi quyền: Trên Safari/iPhone, vui lòng chạm giữ vào ô và chọn "Dán" mặc định của máy!');
                 }
             };
 
-            // Nút Xóa (Clear)
+            // 3. NÚT XÓA
             const clearBtn = doc.createElement('button');
             clearBtn.className = 'floating-btn';
-            clearBtn.type = 'button';
-            clearBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Xóa`;
+            clearBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Xóa`;
             clearBtn.onclick = (e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                textarea.value = '';
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                setNativeValue(textarea, "");
             };
 
+            btnBox.appendChild(copyBtn);
             btnBox.appendChild(pasteBtn);
             btnBox.appendChild(clearBtn);
             container.appendChild(btnBox);
         });
     }
 
-    // Chạy liên tục để luôn giữ nút ở góc ô nhập liệu ngay cả khi load lại trang
-    setInterval(injectFloatingButtons, 400);
+    // Chạy vòng lặp quét liên tục để tự gắn nút mỗi khi web tải kết quả mới
+    setInterval(injectButtons, 500);
     </script>
     """,
     unsafe_allow_html=True
@@ -149,38 +155,14 @@ def get_current_client():
 
 # --- BỘ TỪ ĐIỂN GIỌNG ĐỌC AI (MICROSOFT NEURAL VOICES) ---
 VOICE_MAP = {
-    "Tiếng Việt": {
-        "Nữ": "vi-VN-HoaiMyNeural",
-        "Nam": "vi-VN-NamMinhNeural"
-    },
-    "Tiếng Anh": {
-        "Nữ": "en-US-JennyNeural",
-        "Nam": "en-US-GuyNeural"
-    },
-    "Tiếng Đức": {
-        "Nữ": "de-DE-KatjaNeural",
-        "Nam": "de-DE-ConradNeural"
-    },
-    "Tiếng Tây Ban Nha (Mexico)": {
-        "Nữ": "es-MX-DaliaNeural",
-        "Nam": "es-MX-JorgeNeural"
-    },
-    "Tiếng Trung (Phồn thể/Giản thể)": {
-        "Nữ": "zh-CN-XiaoxiaoNeural",
-        "Nam": "zh-CN-YunxiNeural"
-    },
-    "Tiếng Nhật": {
-        "Nữ": "ja-JP-NanamiNeural",
-        "Nam": "ja-JP-KeitaNeural"
-    },
-    "Tiếng Hàn": {
-        "Nữ": "ko-KR-SunHiNeural",
-        "Nam": "ko-KR-InJoonNeural"
-    },
-    "Tiếng Pháp": {
-        "Nữ": "fr-FR-DeniseNeural",
-        "Nam": "fr-FR-HenriNeural"
-    }
+    "Tiếng Việt": {"Nữ": "vi-VN-HoaiMyNeural", "Nam": "vi-VN-NamMinhNeural"},
+    "Tiếng Anh": {"Nữ": "en-US-JennyNeural", "Nam": "en-US-GuyNeural"},
+    "Tiếng Đức": {"Nữ": "de-DE-KatjaNeural", "Nam": "de-DE-ConradNeural"},
+    "Tiếng Tây Ban Nha (Mexico)": {"Nữ": "es-MX-DaliaNeural", "Nam": "es-MX-JorgeNeural"},
+    "Tiếng Trung (Phồn thể/Giản thể)": {"Nữ": "zh-CN-XiaoxiaoNeural", "Nam": "zh-CN-YunxiNeural"},
+    "Tiếng Nhật": {"Nữ": "ja-JP-NanamiNeural", "Nam": "ja-JP-KeitaNeural"},
+    "Tiếng Hàn": {"Nữ": "ko-KR-SunHiNeural", "Nam": "ko-KR-InJoonNeural"},
+    "Tiếng Pháp": {"Nữ": "fr-FR-DeniseNeural", "Nam": "fr-FR-HenriNeural"}
 }
 
 # --- HÀM TẠO ÂM THANH AI (EDGE-TTS) ---
@@ -209,18 +191,13 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
     for attempt in range(len(list_keys)):
         try:
             client = get_current_client()
-            
             if huong_dich == "vi":
                 prompt = f"Dịch câu sau sang Tiếng Việt sát nghĩa, đúng văn phong nhắn tin trò chuyện. Chỉ trả về kết quả dịch: '{text_goc}'"
             else:
                 prompt = f"Dịch câu Tiếng Việt sau sang {ngon_ngu_dich} tự nhiên như người bản xứ nhắn tin. Chỉ trả về kết quả dịch: '{text_goc}'"
                 
-            res = client.models.generate_content(
-                model="gemini-3.5-flash-lite", 
-                contents=prompt
-            )
+            res = client.models.generate_content(model="gemini-3.5-flash-lite", contents=prompt)
             return res.text.strip()
-            
         except Exception as e:
             error_str = str(e)
             if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
@@ -228,18 +205,13 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
                 continue
             else:
                 return f"Lỗi: {e}"
-                
-    return "⚠️ Tất cả các tài khoản Gmail (API Key) của bạn đều đã tạm hết hạn mức lượt dùng. Vui lòng đợi lát nữa!"
+    return "⚠️ Tất cả tài khoản Gmail đều tạm hết hạn mức. Vui lòng thử lại sau!"
 
 # --- GIAO DIỆN CHÍNH ---
 st.title("⚡ Trạm Dịch Thuật & Giọng Đọc AI")
-st.caption(f"Đang quản lý {len(list_keys)} tài khoản Gmail tự động xoay vòng phòng thủ quá tải!")
+st.caption(f"Đang quản lý {len(list_keys)} tài khoản Gmail tự động xoay vòng!")
 
-gioi_tinh_doc = st.radio(
-    "🎙️ Chọn giọng đọc AI:", 
-    ["Nữ", "Nam"], 
-    horizontal=True
-)
+gioi_tinh_doc = st.radio("🎙️ Chọn giọng đọc AI:", ["Nữ", "Nam"], horizontal=True)
 
 st.divider()
 
@@ -251,11 +223,12 @@ if st.button("⬇️ Dịch sang Tiếng Việt & Đọc", use_container_width=T
     if msg_nhan:
         with st.spinner("AI đang dịch và tạo giọng đọc..."):
             ket_qua_vi = dich_van_ban(msg_nhan, huong_dich="vi")
-            st.info(f"**Ý nghĩa Tiếng Việt:**\n\n{ket_qua_vi}")
+            
+            # Xuất kết quả bằng text_area để nó có thể được tiêm 3 nút Copy/Paste/Xóa
+            st.text_area("Ý nghĩa Tiếng Việt:", value=ket_qua_vi, height=100, key="out_vi")
             
             ma_giong_vi = VOICE_MAP["Tiếng Việt"][gioi_tinh_doc]
             audio_data = tao_am_thanh(ket_qua_vi, ma_giong_vi)
-            
             st.caption("🔊 Nghe thử giọng đọc Tiếng Việt:")
             st.audio(audio_data, format="audio/mp3")
 
@@ -263,7 +236,7 @@ st.divider()
 
 # === PHẦN 2: BẠN TRẢ LỜI ===
 st.subheader("2️⃣ Bạn trả lời:")
-msg_gui = st.text_area("Gõ câu trả lời Tiếng Việt mà bạn muốn dịch sang ngôn ngữ:", height=100, placeholder="Tôi khỏe, cảm ơn bạn...", key="input_gui")
+msg_gui = st.text_area("Gõ câu trả lời Tiếng Việt mà bạn muốn dịch:", height=100, placeholder="Tôi khỏe, cảm ơn bạn...", key="input_gui")
 
 col_lang, col_btn = st.columns([1, 1])
 with col_lang:
@@ -276,11 +249,10 @@ if btn_dich_gui and msg_gui:
     with st.spinner("AI đang dịch và tạo giọng đọc..."):
         ket_qua_ngoai_ngu = dich_van_ban(msg_gui, huong_dich="out", ngon_ngu_dich=lang_select)
         
-        st.success("**Kết quả (Bấm biểu tượng copy ở góc phải ô dưới để sao chép):**")
-        st.code(ket_qua_ngoai_ngu, language=None)
+        # Xuất kết quả bằng text_area để nhận 3 nút Copy/Paste/Xóa
+        st.text_area(f"Kết quả ({lang_select}):", value=ket_qua_ngoai_ngu, height=100, key="out_nn")
         
         ma_giong_ngoai_ngu = VOICE_MAP[lang_select][gioi_tinh_doc]
         audio_data_ngoai_ngu = tao_am_thanh(ket_qua_ngoai_ngu, ma_giong_ngoai_ngu)
-        
         st.caption(f"🔊 Nghe thử giọng phát âm ({lang_select} - {gioi_tinh_doc}):")
         st.audio(audio_data_ngoai_ngu, format="audio/mp3")
