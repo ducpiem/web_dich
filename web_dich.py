@@ -11,29 +11,124 @@ st.set_page_config(
     layout="centered"
 )
 
-# === DIỆT TẬN GỐC BẢNG CLEAR CACHE KHI BẤM CTRL+C & JAVASCRIPT HỖ TRỢ NÚT XÓA ===
+# === CSS & JAVASCRIPT: NÚT NỔI Ở GÓC DƯỚI KHUNG NHẬP LIỆU (Y HỆT HÌNH MẪU) ===
 st.markdown(
     """
+    <style>
+    /* Định vị khung nhập liệu làm chuẩn */
+    div[data-testid="stTextArea"] {
+        position: relative !important;
+    }
+    
+    /* Chống chữ bị đè lên các nút ở góc dưới bên phải */
+    div[data-testid="stTextArea"] textarea {
+        padding-right: 90px !important;
+        padding-bottom: 30px !important;
+    }
+
+    /* Khung chứa nút nằm nổi góc dưới bên phải */
+    .floating-btn-container {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        display: flex;
+        gap: 6px;
+        z-index: 99;
+    }
+
+    /* Phong cách nút icon bo góc màu tối giống ảnh */
+    .floating-btn {
+        background-color: rgba(30, 34, 45, 0.85);
+        color: #e0e0e0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+        transition: all 0.2s ease-in-out;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .floating-btn:hover {
+        background-color: rgba(50, 58, 75, 0.95);
+        border-color: rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .floating-btn:active {
+        transform: translateY(1px);
+    }
+    </style>
+
     <script>
     const doc = window.parent.document;
-    
-    // Chặn phím C mở bảng clear cache
+
+    // Chặn phím C mở bảng clear cache Streamlit
     doc.addEventListener('keydown', function(e) {
         if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
             e.stopPropagation();
         }
     }, true);
 
-    // Hàm xóa nội dung ô nhập liệu
-    function clearBox(boxType) {
-        const textareas = doc.querySelectorAll('textarea');
-        let target = (boxType === 'nhan') ? textareas[0] : textareas[textareas.length > 1 ? 1 : 0];
+    // Hàm tự động gắn nút Dán & Xóa vào góc dưới các ô nhập liệu
+    function injectFloatingButtons() {
+        const containers = doc.querySelectorAll('div[data-testid="stTextArea"]');
         
-        if (target) {
-            target.value = '';
-            target.dispatchEvent(new Event('input', { bubbles: true }));
-        }
+        containers.forEach((container) => {
+            if (container.querySelector('.floating-btn-container')) return;
+            
+            const textarea = container.querySelector('textarea');
+            if (!textarea) return;
+
+            const btnBox = doc.createElement('div');
+            btnBox.className = 'floating-btn-container';
+
+            // Nút Dán (Paste)
+            const pasteBtn = doc.createElement('button');
+            pasteBtn.className = 'floating-btn';
+            pasteBtn.type = 'button';
+            pasteBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg> Dán`;
+            pasteBtn.onclick = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                    const text = await navigator.clipboard.readText();
+                    textarea.value = text;
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch (err) {
+                    textarea.focus();
+                    alert('Chạm giữ trực tiếp vào ô để chọn "Dán" nếu trình duyệt chưa cấp quyền Clipboard!');
+                }
+            };
+
+            // Nút Xóa (Clear)
+            const clearBtn = doc.createElement('button');
+            clearBtn.className = 'floating-btn';
+            clearBtn.type = 'button';
+            clearBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Xóa`;
+            clearBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                textarea.value = '';
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                textarea.dispatchEvent(new Event('change', { bubbles: true }));
+            };
+
+            btnBox.appendChild(pasteBtn);
+            btnBox.appendChild(clearBtn);
+            container.appendChild(btnBox);
+        });
     }
+
+    // Chạy liên tục để luôn giữ nút ở góc ô nhập liệu ngay cả khi load lại trang
+    setInterval(injectFloatingButtons, 400);
     </script>
     """,
     unsafe_allow_html=True
@@ -106,7 +201,7 @@ def tao_am_thanh(text, voice_code):
         
     return loop.run_until_complete(_generate())
 
-# --- HÀM DỊCH THÔNG MINH (CÓ TỰ ĐỘNG XOAY VÒNG KEY KHI HẾT QUOTA) ---
+# --- HÀM DỊCH THÔNG MINH ---
 def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
     if not text_goc.strip():
         return ""
@@ -149,18 +244,8 @@ gioi_tinh_doc = st.radio(
 st.divider()
 
 # === PHẦN 1: HỌ NÓI GÌ? ===
-col_h1, col_b1 = st.columns([2, 1])
-with col_h1:
-    st.subheader("1️⃣ Đối tác gửi tin nhắn:")
-with col_b1:
-    st.markdown("""
-        <div style="text-align: right; padding-top: 5px;">
-            <span style="font-size: 11px; color: #888; margin-right: 6px;">💡 Chạm ô để dán</span>
-            <button onclick="clearBox('nhan')" style="background: #2b313e; color: #ff4b4b; border: 1px solid #555; padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">🗑️ Xóa</button>
-        </div>
-    """, unsafe_allow_html=True)
-
-msg_nhan = st.text_area("Dán tin nhắn đa ngôn ngữ vào đây:", height=90, placeholder="Hello! How are you today?...", key="input_nhan")
+st.subheader("1️⃣ Đối tác gửi tin nhắn:")
+msg_nhan = st.text_area("Dán tin nhắn đa ngôn ngữ vào đây:", height=100, placeholder="Hello! How are you today?...", key="input_nhan")
 
 if st.button("⬇️ Dịch sang Tiếng Việt & Đọc", use_container_width=True, type="primary"):
     if msg_nhan:
@@ -177,18 +262,8 @@ if st.button("⬇️ Dịch sang Tiếng Việt & Đọc", use_container_width=T
 st.divider()
 
 # === PHẦN 2: BẠN TRẢ LỜI ===
-col_h2, col_b2 = st.columns([2, 1])
-with col_h2:
-    st.subheader("2️⃣ Bạn trả lời:")
-with col_b2:
-    st.markdown("""
-        <div style="text-align: right; padding-top: 5px;">
-            <span style="font-size: 11px; color: #888; margin-right: 6px;">💡 Chạm ô để dán</span>
-            <button onclick="clearBox('gui')" style="background: #2b313e; color: #ff4b4b; border: 1px solid #555; padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">🗑️ Xóa</button>
-        </div>
-    """, unsafe_allow_html=True)
-
-msg_gui = st.text_area("Gõ câu trả lời Tiếng Việt mà bạn muốn dịch sang ngôn ngữ:", height=90, placeholder="Tôi khỏe, cảm ơn bạn...", key="input_gui")
+st.subheader("2️⃣ Bạn trả lời:")
+msg_gui = st.text_area("Gõ câu trả lời Tiếng Việt mà bạn muốn dịch sang ngôn ngữ:", height=100, placeholder="Tôi khỏe, cảm ơn bạn...", key="input_gui")
 
 col_lang, col_btn = st.columns([1, 1])
 with col_lang:
