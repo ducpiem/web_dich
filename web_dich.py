@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from google import genai
 import edge_tts
 import asyncio
@@ -11,99 +12,106 @@ st.set_page_config(
     layout="centered"
 )
 
-# === CSS & JAVASCRIPT: ICON COPY/PASTE NHỎ GỌN TRONG GÓC TẤT CẢ CÁC Ô ===
+# === CSS: CHỈNH KHUNG TEXT AREA CHỪA CHỖ CHO ICON ===
 st.markdown(
     """
     <style>
     /* Ép tất cả các ô text phải chừa lại một khoảng trống bên dưới để chữ không đè lên icon */
-    div[data-baseweb="textarea"] textarea {
-        padding-bottom: 30px !important;
+    div[data-testid="stTextArea"] textarea {
+        padding-bottom: 35px !important;
     }
     </style>
+    """,
+    unsafe_allow_html=True
+)
 
+# === JAVASCRIPT ÉP BUỘC CHẠY BẰNG COMPONENTS TẠO 2 ICON NHỎ DƯỚI GÓC ===
+components.html(
+    """
     <script>
-    const targetDoc = window.parent.document;
+    const parentDoc = window.parent.document;
 
-    function injectTinyIcons() {
-        // Tìm chính xác cái khung nền xám của tất cả các ô trên web
-        const wrappers = targetDoc.querySelectorAll('div[data-baseweb="textarea"]');
+    function addTinyIcons() {
+        // Tìm tất cả các khung chứa text area của Streamlit
+        const textAreas = parentDoc.querySelectorAll('div[data-testid="stTextArea"]');
         
-        wrappers.forEach(wrapper => {
+        textAreas.forEach(ta => {
             // Nếu ô này đã được gắn icon rồi thì bỏ qua
-            if (wrapper.querySelector('.tiny-icons-box')) return;
-            
-            const textarea = wrapper.querySelector('textarea');
-            if(!textarea) return;
+            if (ta.querySelector('.my-tiny-icons')) return;
+
+            // Đặt relative để icon bám vào góc của khung
+            ta.style.position = 'relative';
+
+            const input = ta.querySelector('textarea');
+            if(!input) return;
 
             // Tạo khung chứa 2 icon nho nhỏ
-            const iconBox = targetDoc.createElement('div');
-            iconBox.className = 'tiny-icons-box';
-            iconBox.style.position = 'absolute';
-            iconBox.style.right = '10px';
-            iconBox.style.bottom = '8px';
-            iconBox.style.display = 'flex';
-            iconBox.style.gap = '12px';
-            iconBox.style.zIndex = '99';
-            
+            const iconDiv = parentDoc.createElement('div');
+            iconDiv.className = 'my-tiny-icons';
+            iconDiv.style.cssText = 'position: absolute; bottom: 8px; right: 10px; display: flex; gap: 12px; z-index: 99;';
+
             // --- ICON DÁN (PASTE) ---
-            const pasteBtn = targetDoc.createElement('div');
+            const pasteBtn = parentDoc.createElement('div');
             pasteBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`;
             pasteBtn.style.cursor = 'pointer';
             pasteBtn.title = 'Dán';
+            
+            // Hiệu ứng hover
+            pasteBtn.onmouseover = () => pasteBtn.querySelector('svg').setAttribute('stroke', '#ffffff');
+            pasteBtn.onmouseout = () => pasteBtn.querySelector('svg').setAttribute('stroke', '#a0a0a0');
+
             pasteBtn.onclick = async (e) => {
                 e.preventDefault();
                 try {
                     const text = await navigator.clipboard.readText();
-                    // Lệnh bắt buộc Streamlit nhận diện chữ vừa dán
+                    // Lệnh ép Streamlit nhận diện chữ vừa dán
                     const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                    setter.call(textarea, text);
-                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                } catch(err) {
-                    alert('Chạm giữ vào ô để chọn "Dán" nếu trình duyệt chặn quyền!');
+                    setter.call(input, text);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                } catch (err) {
+                    alert('Trình duyệt chặn Dán! Chạm giữ vào ô để Dán thủ công.');
                 }
             };
-            
+
             // --- ICON COPY ---
+            const copyBtn = parentDoc.createElement('div');
             const copySvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
             const checkSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00ff00" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
             
-            const copyBtn = targetDoc.createElement('div');
             copyBtn.innerHTML = copySvg;
             copyBtn.style.cursor = 'pointer';
             copyBtn.title = 'Copy';
+            
+            copyBtn.onmouseover = () => { if(copyBtn.innerHTML === copySvg) copyBtn.querySelector('svg').setAttribute('stroke', '#ffffff'); };
+            copyBtn.onmouseout = () => { if(copyBtn.innerHTML === copySvg) copyBtn.querySelector('svg').setAttribute('stroke', '#a0a0a0'); };
+
             copyBtn.onclick = (e) => {
                 e.preventDefault();
-                navigator.clipboard.writeText(textarea.value).then(() => {
-                    // Đổi sang dấu tích xanh 1.5s để báo hiệu đã copy
+                navigator.clipboard.writeText(input.value).then(() => {
                     copyBtn.innerHTML = checkSvg;
-                    setTimeout(() => copyBtn.innerHTML = copySvg, 1500);
+                    setTimeout(() => { copyBtn.innerHTML = copySvg; }, 1500);
                 });
             };
 
-            // Hiệu ứng rê chuột vào thì icon sáng lên
-            [pasteBtn, copyBtn].forEach(btn => {
-                btn.onmouseover = () => { btn.querySelector('svg').setAttribute('stroke', '#ffffff'); };
-                btn.onmouseout = () => { btn.querySelector('svg').setAttribute('stroke', '#a0a0a0'); };
-            });
-
-            iconBox.appendChild(pasteBtn);
-            iconBox.appendChild(copyBtn);
-            wrapper.appendChild(iconBox);
+            iconDiv.appendChild(pasteBtn);
+            iconDiv.appendChild(copyBtn);
+            ta.appendChild(iconDiv);
         });
     }
 
-    // Vòng lặp quét liên tục siêu nhanh (300ms) để ô nào vừa hiện ra là gắn icon ngay lập tức
-    setInterval(injectTinyIcons, 300);
+    // Quét liên tục 0.5s một lần để đảm bảo icon luôn hiện
+    setInterval(addTinyIcons, 500);
 
-    // Chặn bảng clear cache khó chịu của Streamlit
-    targetDoc.addEventListener('keydown', function(e) {
+    // Chặn phím C mở bảng clear cache
+    parentDoc.addEventListener('keydown', function(e) {
         if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
             e.stopPropagation();
         }
     }, true);
     </script>
     """,
-    unsafe_allow_html=True
+    height=0,
+    width=0
 )
 
 # --- QUẢN LÝ NHIỀU API KEY XOAY VÒNG ---
@@ -190,7 +198,6 @@ if st.button("⬇️ Dịch sang Tiếng Việt & Đọc", use_container_width=T
         with st.spinner("AI đang dịch và tạo giọng đọc..."):
             ket_qua_vi = dich_van_ban(msg_nhan, huong_dich="vi")
             
-            # Xuất kết quả bằng text_area để nó tự động được gắn icon copy/paste
             st.text_area("Ý nghĩa Tiếng Việt:", value=ket_qua_vi, height=100, key="out_vi")
             
             ma_giong_vi = VOICE_MAP["Tiếng Việt"][gioi_tinh_doc]
@@ -215,7 +222,6 @@ if btn_dich_gui and msg_gui:
     with st.spinner("AI đang dịch và tạo giọng đọc..."):
         ket_qua_ngoai_ngu = dich_van_ban(msg_gui, huong_dich="out", ngon_ngu_dich=lang_select)
         
-        # Xuất kết quả bằng text_area để tự động được gắn icon copy/paste
         st.text_area(f"Kết quả ({lang_select}):", value=ket_qua_ngoai_ngu, height=100, key="out_nn")
         
         ma_giong_ngoai_ngu = VOICE_MAP[lang_select][gioi_tinh_doc]
