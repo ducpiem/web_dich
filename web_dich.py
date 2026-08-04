@@ -11,130 +11,96 @@ st.set_page_config(
     layout="centered"
 )
 
-# === CSS & JAVASCRIPT: GẮN NÚT COPY/PASTE/XÓA VÀO TẤT CẢ CÁC Ô ===
+# === CSS & JAVASCRIPT: ICON COPY/PASTE NHỎ GỌN TRONG GÓC TẤT CẢ CÁC Ô ===
 st.markdown(
     """
     <style>
-    /* Chỉnh sửa để ô nhập liệu có khoảng trống phía dưới cho nút */
-    div[data-testid="stTextArea"] {
-        position: relative !important;
-    }
-    div[data-testid="stTextArea"] textarea {
-        padding-bottom: 45px !important;
-    }
-
-    /* Vị trí khung chứa 3 nút nổi */
-    .floating-btn-container {
-        position: absolute;
-        right: 8px;
-        bottom: 8px;
-        display: flex;
-        gap: 6px;
-        z-index: 99;
-    }
-
-    /* Thiết kế nút bấm giống ảnh (Tối, sang trọng, bo góc) */
-    .floating-btn {
-        background-color: rgba(30, 34, 45, 0.9);
-        color: #e0e0e0;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 6px;
-        padding: 5px 8px;
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        transition: all 0.2s;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-    }
-    .floating-btn:hover {
-        background-color: rgba(50, 58, 75, 1);
-        color: white;
-        border-color: rgba(255, 255, 255, 0.4);
-    }
-    .floating-btn:active {
-        transform: scale(0.95);
+    /* Ép tất cả các ô text phải chừa lại một khoảng trống bên dưới để chữ không đè lên icon */
+    div[data-baseweb="textarea"] textarea {
+        padding-bottom: 30px !important;
     }
     </style>
 
     <script>
-    const doc = window.parent.document;
+    const targetDoc = window.parent.document;
 
-    // Chặn phím C mở bảng clear cache
-    doc.addEventListener('keydown', function(e) {
-        if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
-            e.stopPropagation();
-        }
-    }, true);
-
-    // Mẹo bắt buộc Streamlit cập nhật dữ liệu khi dùng JavaScript
-    function setNativeValue(element, value) {
-        const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-        valueSetter.call(element, value);
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    // Hàm tiêm 3 nút vào TẤT CẢ các ô nhập liệu
-    function injectButtons() {
-        const textAreas = doc.querySelectorAll('div[data-testid="stTextArea"]');
+    function injectTinyIcons() {
+        // Tìm chính xác cái khung nền xám của tất cả các ô trên web
+        const wrappers = targetDoc.querySelectorAll('div[data-baseweb="textarea"]');
         
-        textAreas.forEach((container) => {
-            // Nếu đã gắn nút rồi thì bỏ qua
-            if (container.querySelector('.floating-btn-container')) return;
+        wrappers.forEach(wrapper => {
+            // Nếu ô này đã được gắn icon rồi thì bỏ qua
+            if (wrapper.querySelector('.tiny-icons-box')) return;
             
-            const textarea = container.querySelector('textarea');
-            if (!textarea) return;
+            const textarea = wrapper.querySelector('textarea');
+            if(!textarea) return;
 
-            const btnBox = doc.createElement('div');
-            btnBox.className = 'floating-btn-container';
-
-            // 1. NÚT COPY
-            const copyBtn = doc.createElement('button');
-            copyBtn.className = 'floating-btn';
-            copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy`;
-            copyBtn.onclick = (e) => {
-                e.preventDefault();
-                navigator.clipboard.writeText(textarea.value).then(() => {
-                    const originalHTML = copyBtn.innerHTML;
-                    copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff00" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> OK`;
-                    setTimeout(() => copyBtn.innerHTML = originalHTML, 1500);
-                });
-            };
-
-            // 2. NÚT DÁN (PASTE)
-            const pasteBtn = doc.createElement('button');
-            pasteBtn.className = 'floating-btn';
-            pasteBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg> Dán`;
+            // Tạo khung chứa 2 icon nho nhỏ
+            const iconBox = targetDoc.createElement('div');
+            iconBox.className = 'tiny-icons-box';
+            iconBox.style.position = 'absolute';
+            iconBox.style.right = '10px';
+            iconBox.style.bottom = '8px';
+            iconBox.style.display = 'flex';
+            iconBox.style.gap = '12px';
+            iconBox.style.zIndex = '99';
+            
+            // --- ICON DÁN (PASTE) ---
+            const pasteBtn = targetDoc.createElement('div');
+            pasteBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`;
+            pasteBtn.style.cursor = 'pointer';
+            pasteBtn.title = 'Dán';
             pasteBtn.onclick = async (e) => {
                 e.preventDefault();
                 try {
                     const text = await navigator.clipboard.readText();
-                    setNativeValue(textarea, text);
+                    // Lệnh bắt buộc Streamlit nhận diện chữ vừa dán
+                    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+                    setter.call(textarea, text);
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
                 } catch(err) {
-                    alert('Lỗi quyền: Trên Safari/iPhone, vui lòng chạm giữ vào ô và chọn "Dán" mặc định của máy!');
+                    alert('Chạm giữ vào ô để chọn "Dán" nếu trình duyệt chặn quyền!');
                 }
             };
-
-            // 3. NÚT XÓA
-            const clearBtn = doc.createElement('button');
-            clearBtn.className = 'floating-btn';
-            clearBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Xóa`;
-            clearBtn.onclick = (e) => {
+            
+            // --- ICON COPY ---
+            const copySvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+            const checkSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00ff00" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            
+            const copyBtn = targetDoc.createElement('div');
+            copyBtn.innerHTML = copySvg;
+            copyBtn.style.cursor = 'pointer';
+            copyBtn.title = 'Copy';
+            copyBtn.onclick = (e) => {
                 e.preventDefault();
-                setNativeValue(textarea, "");
+                navigator.clipboard.writeText(textarea.value).then(() => {
+                    // Đổi sang dấu tích xanh 1.5s để báo hiệu đã copy
+                    copyBtn.innerHTML = checkSvg;
+                    setTimeout(() => copyBtn.innerHTML = copySvg, 1500);
+                });
             };
 
-            btnBox.appendChild(copyBtn);
-            btnBox.appendChild(pasteBtn);
-            btnBox.appendChild(clearBtn);
-            container.appendChild(btnBox);
+            // Hiệu ứng rê chuột vào thì icon sáng lên
+            [pasteBtn, copyBtn].forEach(btn => {
+                btn.onmouseover = () => { btn.querySelector('svg').setAttribute('stroke', '#ffffff'); };
+                btn.onmouseout = () => { btn.querySelector('svg').setAttribute('stroke', '#a0a0a0'); };
+            });
+
+            iconBox.appendChild(pasteBtn);
+            iconBox.appendChild(copyBtn);
+            wrapper.appendChild(iconBox);
         });
     }
 
-    // Chạy vòng lặp quét liên tục để tự gắn nút mỗi khi web tải kết quả mới
-    setInterval(injectButtons, 500);
+    // Vòng lặp quét liên tục siêu nhanh (300ms) để ô nào vừa hiện ra là gắn icon ngay lập tức
+    setInterval(injectTinyIcons, 300);
+
+    // Chặn bảng clear cache khó chịu của Streamlit
+    targetDoc.addEventListener('keydown', function(e) {
+        if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
+            e.stopPropagation();
+        }
+    }, true);
     </script>
     """,
     unsafe_allow_html=True
@@ -153,7 +119,7 @@ def get_current_client():
     current_key = list_keys[st.session_state.key_index].strip()
     return genai.Client(api_key=current_key)
 
-# --- BỘ TỪ ĐIỂN GIỌNG ĐỌC AI (MICROSOFT NEURAL VOICES) ---
+# --- BỘ TỪ ĐIỂN GIỌNG ĐỌC AI ---
 VOICE_MAP = {
     "Tiếng Việt": {"Nữ": "vi-VN-HoaiMyNeural", "Nam": "vi-VN-NamMinhNeural"},
     "Tiếng Anh": {"Nữ": "en-US-JennyNeural", "Nam": "en-US-GuyNeural"},
@@ -165,7 +131,7 @@ VOICE_MAP = {
     "Tiếng Pháp": {"Nữ": "fr-FR-DeniseNeural", "Nam": "fr-FR-HenriNeural"}
 }
 
-# --- HÀM TẠO ÂM THANH AI (EDGE-TTS) ---
+# --- HÀM TẠO ÂM THANH AI ---
 def tao_am_thanh(text, voice_code):
     async def _generate():
         tts = edge_tts.Communicate(text, voice_code)
@@ -224,7 +190,7 @@ if st.button("⬇️ Dịch sang Tiếng Việt & Đọc", use_container_width=T
         with st.spinner("AI đang dịch và tạo giọng đọc..."):
             ket_qua_vi = dich_van_ban(msg_nhan, huong_dich="vi")
             
-            # Xuất kết quả bằng text_area để nó có thể được tiêm 3 nút Copy/Paste/Xóa
+            # Xuất kết quả bằng text_area để nó tự động được gắn icon copy/paste
             st.text_area("Ý nghĩa Tiếng Việt:", value=ket_qua_vi, height=100, key="out_vi")
             
             ma_giong_vi = VOICE_MAP["Tiếng Việt"][gioi_tinh_doc]
@@ -249,7 +215,7 @@ if btn_dich_gui and msg_gui:
     with st.spinner("AI đang dịch và tạo giọng đọc..."):
         ket_qua_ngoai_ngu = dich_van_ban(msg_gui, huong_dich="out", ngon_ngu_dich=lang_select)
         
-        # Xuất kết quả bằng text_area để nhận 3 nút Copy/Paste/Xóa
+        # Xuất kết quả bằng text_area để tự động được gắn icon copy/paste
         st.text_area(f"Kết quả ({lang_select}):", value=ket_qua_ngoai_ngu, height=100, key="out_nn")
         
         ma_giong_ngoai_ngu = VOICE_MAP[lang_select][gioi_tinh_doc]
