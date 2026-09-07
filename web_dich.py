@@ -16,7 +16,6 @@ st.markdown(
     <script>
     const doc = window.parent.document;
     doc.addEventListener('keydown', function(e) {
-        // Nếu bấm chữ C (hoặc Shift+C) mà không ở trong ô nhập liệu -> Chặn lệnh của Streamlit
         if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
             e.stopPropagation();
         }
@@ -26,15 +25,17 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- QUẢN LÝ NHIỀU API KEY XOAY VÒNG ---
-# Lấy danh sách key từ két sắt Streamlit
+# --- QUẢN LÝ NHIỀU API KEY XOAY VÒNG (ĐÃ SỬA LỖI ĐỌC SECRETS) ---
 if "GEMINI_KEYS" in st.secrets:
-    list_keys = st.secrets["GEMINI_KEYS"]
+    raw_keys = st.secrets["GEMINI_KEYS"]
+    # Ép kiểu an toàn: Nếu Streamlit hiểu lầm là 1 chuỗi "key1,key2" thì tự động cắt nhỏ thành danh sách
+    if isinstance(raw_keys, str):
+        list_keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
+    else:
+        list_keys = list(raw_keys)
 else:
-    # Dự phòng nếu chưa cấu hình danh sách
     list_keys = [st.secrets.get("GEMINI_API_KEY", "DEFAULT_KEY")]
 
-# Khởi tạo vị trí key đang dùng trong session state
 if "key_index" not in st.session_state:
     st.session_state.key_index = 0
 
@@ -42,7 +43,7 @@ def get_current_client():
     current_key = list_keys[st.session_state.key_index].strip()
     return genai.Client(api_key=current_key)
 
-# --- BỘ TỪ ĐIỂN GIỌNG ĐỌC AI (MICROSOFT NEURAL VOICES) ---
+# --- BỘ TỪ ĐIỂN GIỌNG ĐỌC AI ---
 VOICE_MAP = {
     "Tiếng Việt": {
         "Nữ": "vi-VN-HoaiMyNeural",
@@ -78,7 +79,7 @@ VOICE_MAP = {
     }
 }
 
-# --- HÀM TẠO ÂM THANH AI (EDGE-TTS) ---
+# --- HÀM TẠO ÂM THANH AI ---
 def tao_am_thanh(text, voice_code):
     async def _generate():
         tts = edge_tts.Communicate(text, voice_code)
@@ -96,13 +97,15 @@ def tao_am_thanh(text, voice_code):
         
     return loop.run_until_complete(_generate())
 
-# --- HÀM DỊCH THÔNG MINH (CÓ TỰ ĐỘNG XOAY VÒNG KEY KHI HẾT QUOTA) ---
+# --- HÀM DỊCH THÔNG MINH (ĐÃ SỬA LỖI ÉP QUAY VÒNG KEY TỚI CÙNG) ---
 def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
     if not text_goc.strip():
         return ""
     
-    # Thử tối đa số lượng key đang có trong danh sách
-    for attempt in range(len(list_keys)):
+    # Cho phép số lần thử gấp đôi số lượng key (đề phòng mạng lag phải thử lại key cũ)
+    so_lan_thu = len(list_keys) * 2 
+    
+    for attempt in range(so_lan_thu):
         try:
             client = get_current_client()
             
@@ -118,15 +121,18 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
             return res.text.strip()
             
         except Exception as e:
-            error_str = str(e)
-            # Nếu dính lỗi hết quota (429), tự động chuyển sang Key của tài khoản Gmail tiếp theo
-            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                st.session_state.key_index = (st.session_state.key_index + 1) % len(list_keys)
-                continue # Vòng lặp tiếp theo sẽ dùng key mới ngay lập tức
-            else:
-                return f"Lỗi: {e}"
+            error_str = str(e).lower()
+            
+            # 1. Nếu Google bị quá tải cục bộ (503) -> Chờ 2s rồi thử lại
+            if "503" in error_str or "unavailable" in error_str or "high demand" in error_str:
+                time.sleep(2)
+                continue
                 
-    return "⚠️ Tất cả các tài khoản Gmail (API Key) của bạn đều đã tạm hết hạn mức lượt dùng. Vui lòng đợi lát nữa!"
+            # 2. Nếu dính LỖI BẤT KỲ (hết quota, key lỗi, 429...) -> Bắt buộc nhảy sang Key tiếp theo
+            st.session_state.key_index = (st.session_state.key_index + 1) % len(list_keys)
+            continue
+                
+    return "⚠️ Cảnh báo: Đã quét qua toàn bộ API Key nhưng đều báo lỗi hoặc hết hạn mức. Vui lòng thử lại sau!"
 
 # --- GIAO DIỆN CHÍNH ---
 st.title("⚡ Trạm Dịch Thuật & Giọng Đọc AI")
