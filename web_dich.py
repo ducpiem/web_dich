@@ -97,15 +97,17 @@ def tao_am_thanh(text, voice_code):
         
     return loop.run_until_complete(_generate())
 
-# --- HÀM DỊCH THÔNG MINH (ĐÃ SỬA LỖI ÉP QUAY VÒNG KEY TỚI CÙNG) ---
+# --- HÀM DỊCH THÔNG MINH (CÓ TỰ ĐỘNG XOAY VÒNG VÀ HIỂN THỊ ĐANG DÙNG KEY NÀO) ---
 def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
     if not text_goc.strip():
         return ""
     
-    # Cho phép số lần thử gấp đôi số lượng key (đề phòng mạng lag phải thử lại key cũ)
     so_lan_thu = len(list_keys) * 2 
     
     for attempt in range(so_lan_thu):
+        current_idx = st.session_state.key_index
+        current_key_preview = list_keys[current_idx][:8] + "..." 
+        
         try:
             client = get_current_client()
             
@@ -118,17 +120,22 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
                 model="gemini-3.5-flash-lite", 
                 contents=prompt
             )
+            
+            # Hiện thông báo nhỏ ở góc phải màn hình để bạn biết đang dùng Key số mấy
+            st.toast(f"✅ Dịch thành công bằng API Key số {current_idx + 1} ({current_key_preview})", icon="⚡")
+            
             return res.text.strip()
             
         except Exception as e:
             error_str = str(e).lower()
             
-            # 1. Nếu Google bị quá tải cục bộ (503) -> Chờ 2s rồi thử lại
+            # Nếu Google quá tải (503) -> Chờ 2s rồi thử lại
             if "503" in error_str or "unavailable" in error_str or "high demand" in error_str:
                 time.sleep(2)
                 continue
                 
-            # 2. Nếu dính LỖI BẤT KỲ (hết quota, key lỗi, 429...) -> Bắt buộc nhảy sang Key tiếp theo
+            # Nếu lỗi khác hoặc hết quota -> Báo qua toast và chuyển sang Key tiếp theo ngay lập tức
+            st.toast(f"⚠️ Key số {current_idx + 1} lỗi, đang đổi sang key tiếp theo...", icon="🔄")
             st.session_state.key_index = (st.session_state.key_index + 1) % len(list_keys)
             continue
                 
