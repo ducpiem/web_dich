@@ -97,7 +97,7 @@ def tao_am_thanh(text, voice_code):
         
     return loop.run_until_complete(_generate())
 
-# --- HÀM DỊCH THÔNG MINH (CÓ TỰ ĐỘNG XOAY VÒNG VÀ HIỂN THỊ ĐANG DÙNG KEY NÀO) ---
+# --- HÀM DỊCH THÔNG MINH (CÓ HIỂN THỊ ĐUÔI API KEY ĐỂ DỄ NHẬN BIẾT) ---
 def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
     if not text_goc.strip():
         return ""
@@ -106,7 +106,11 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
     
     for attempt in range(so_lan_thu):
         current_idx = st.session_state.key_index
-        current_key_preview = list_keys[current_idx][:8] + "..." 
+        full_key = list_keys[current_idx].strip()
+        
+        # Lấy 6 ký tự cuối cùng của key làm mã nhận diện đuôi (phòng hờ key ngắn thì lấy ít hơn)
+        tail_len = min(6, len(full_key))
+        current_key_tail = "..." + full_key[-tail_len:]
         
         try:
             client = get_current_client()
@@ -121,8 +125,8 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
                 contents=prompt
             )
             
-            # Hiện thông báo nhỏ ở góc phải màn hình để bạn biết đang dùng Key số mấy
-            st.toast(f"✅ Dịch thành công bằng API Key số {current_idx + 1} ({current_key_preview})", icon="⚡")
+            # Hiển thị thông báo kèm ĐUÔI KEY ở góc phải màn hình
+            st.toast(f"✅ Dịch xong bằng Key đuôi [{current_key_tail}]", icon="⚡")
             
             return res.text.strip()
             
@@ -135,7 +139,7 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
                 continue
                 
             # Nếu lỗi khác hoặc hết quota -> Báo qua toast và chuyển sang Key tiếp theo ngay lập tức
-            st.toast(f"⚠️ Key số {current_idx + 1} lỗi, đang đổi sang key tiếp theo...", icon="🔄")
+            st.toast(f"⚠️ Key đuôi [{current_key_tail}] lỗi, đang đổi key...", icon="🔄")
             st.session_state.key_index = (st.session_state.key_index + 1) % len(list_keys)
             continue
                 
