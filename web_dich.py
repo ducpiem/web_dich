@@ -3,6 +3,7 @@ from google import genai
 import edge_tts
 import asyncio
 import time
+import random
 
 # --- CẤU HÌNH TRANG WEB ---
 st.set_page_config(
@@ -25,14 +26,13 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- QUẢN LÝ NHIỀU API KEY XOAY VÒNG (ĐÃ SỬA LỖI ĐỌC SECRETS) ---
+# --- QUẢN LÝ NHIỀU API KEY XOAY VÒNG & AN TOÀN ---
 if "GEMINI_KEYS" in st.secrets:
     raw_keys = st.secrets["GEMINI_KEYS"]
-    # Ép kiểu an toàn: Nếu Streamlit hiểu lầm là 1 chuỗi "key1,key2" thì tự động cắt nhỏ thành danh sách
     if isinstance(raw_keys, str):
-        list_keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
+        list_keys = [k.strip(' "\'') for k in raw_keys.replace("[", "").replace("]", "").split(",") if k.strip(' "\'')]
     else:
-        list_keys = list(raw_keys)
+        list_keys = [str(k).strip() for k in raw_keys if str(k).strip()]
 else:
     list_keys = [st.secrets.get("GEMINI_API_KEY", "DEFAULT_KEY")]
 
@@ -40,7 +40,7 @@ if "key_index" not in st.session_state:
     st.session_state.key_index = 0
 
 def get_current_client():
-    current_key = list_keys[st.session_state.key_index].strip()
+    current_key = list_keys[st.session_state.key_index % len(list_keys)].strip()
     return genai.Client(api_key=current_key)
 
 # --- BỘ TỪ ĐIỂN GIỌNG ĐỌC AI ---
@@ -97,18 +97,20 @@ def tao_am_thanh(text, voice_code):
         
     return loop.run_until_complete(_generate())
 
-# --- HÀM DỊCH THÔNG MINH (CÓ HIỂN THỊ ĐUÔI API KEY ĐỂ DỄ NHẬN BIẾT) ---
+# --- HÀM DỊCH THÔNG MINH (BỐC THĂM NGẪU NHIÊN API KEY & HIỂN THỊ ĐUÔI) ---
 def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
     if not text_goc.strip():
         return ""
     
-    so_lan_thu = len(list_keys) * 2 
+    # Tạo danh sách chỉ mục ngẫu nhiên để duyệt qua các key không theo thứ tự cố định
+    available_indices = list(range(len(list_keys)))
+    random.shuffle(available_indices)
     
-    for attempt in range(so_lan_thu):
-        current_idx = st.session_state.key_index
+    for current_idx in available_indices:
+        st.session_state.key_index = current_idx
         full_key = list_keys[current_idx].strip()
         
-        # Lấy 6 ký tự cuối cùng của key làm mã nhận diện đuôi (phòng hờ key ngắn thì lấy ít hơn)
+        # Lấy 6 ký tự cuối của key làm mã nhận diện đuôi
         tail_len = min(6, len(full_key))
         current_key_tail = "..." + full_key[-tail_len:]
         
@@ -125,29 +127,32 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
                 contents=prompt
             )
             
-            # Hiển thị thông báo kèm ĐUÔI KEY ở góc phải màn hình
-            st.toast(f"✅ Dịch xong bằng Key đuôi [{current_key_tail}]", icon="⚡")
-            
+            # Thông báo thành công kèm đuôi key thực tế đang gánh request
+            st.toast(f"🎲 Dịch thành công bằng Key đuôi [{current_key_tail}]", icon="⚡")
             return res.text.strip()
             
         except Exception as e:
             error_str = str(e).lower()
             
-            # Nếu Google quá tải (503) -> Chờ 2s rồi thử lại
+            # Nếu lỗi quá tải (503), cho phép chờ 2s thử lại chính key đó 1 lần
             if "503" in error_str or "unavailable" in error_str or "high demand" in error_str:
                 time.sleep(2)
-                continue
-                
-            # Nếu lỗi khác hoặc hết quota -> Báo qua toast và chuyển sang Key tiếp theo ngay lập tức
-            st.toast(f"⚠️ Key đuôi [{current_key_tail}] lỗi, đang đổi key...", icon="🔄")
-            st.session_state.key_index = (st.session_state.key_index + 1) % len(list_keys)
+                try:
+                    res = client.models.generate_content(model="gemini-3.5-flash-lite", contents=prompt)
+                    st.toast(f"🎲 Key đuôi [{current_key_tail}] đã phục hồi sau lỗi 503!", icon="⚡")
+                    return res.text.strip()
+                except:
+                    pass
+            
+            # Nếu lỗi khác hoặc hết quota -> Báo toast và lập tức bốc sang key ngẫu nhiên tiếp theo
+            st.toast(f"⚠️ Key đuôi [{current_key_tail}] lỗi/hết hạn, đang bốc key khác...", icon="🔄")
             continue
                 
-    return "⚠️ Cảnh báo: Đã quét qua toàn bộ API Key nhưng đều báo lỗi hoặc hết hạn mức. Vui lòng thử lại sau!"
+    return "⚠️ Cảnh báo: Đã bốc thăm ngẫu nhiên toàn bộ danh sách API Key nhưng đều lỗi hoặc hết hạn mức. Vui lòng thử lại sau!"
 
 # --- GIAO DIỆN CHÍNH ---
 st.title("⚡ Trạm Dịch Thuật & Giọng Đọc AI")
-st.caption(f"Đang quản lý {len(list_keys)} tài khoản Gmail tự động xoay vòng phòng thủ quá tải!")
+st.caption(f"Đang quản lý {len(list_keys)} tài khoản Gmail tự động bốc thăm ngẫu nhiên phòng thủ quá tải!")
 
 gioi_tinh_doc = st.radio(
     "🎙️ Chọn giọng đọc AI:", 
