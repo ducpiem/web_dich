@@ -79,7 +79,7 @@ VOICE_MAP = {
     }
 }
 
-# --- HÀM TẠO ÂM THANH AI ---
+# --- HÀM TẠO ÂM THANH AI (CÓ BỌC THÉP CHỐNG LỖI MẠNG EDGE-TTS) ---
 def tao_am_thanh(text, voice_code):
     async def _generate():
         tts = edge_tts.Communicate(text, voice_code)
@@ -89,20 +89,28 @@ def tao_am_thanh(text, voice_code):
                 audio_bytes += chunk["data"]
         return audio_bytes
 
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-    return loop.run_until_complete(_generate())
+    # Thử lại tối đa 3 lần nếu kết nối WebSocket của Microsoft Edge bị lỗi chập chờn
+    for attempt in range(3):
+        try:
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+            return loop.run_until_complete(_generate())
+        except Exception as e:
+            if attempt == 2:
+                st.toast(f"⚠️ Mất kết nối giọng đọc Microsoft: {e}", icon="❌")
+                return None
+            time.sleep(1)
+    return None
 
 # --- HÀM DỊCH THÔNG MINH (BỐC THĂM NGẪU NHIÊN API KEY & HIỂN THỊ ĐUÔI) ---
 def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
     if not text_goc.strip():
         return ""
     
-    # Tạo danh sách chỉ mục ngẫu nhiên để duyệt qua các key không theo thứ tự cố định
     available_indices = list(range(len(list_keys)))
     random.shuffle(available_indices)
     
@@ -110,7 +118,6 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
         st.session_state.key_index = current_idx
         full_key = list_keys[current_idx].strip()
         
-        # Lấy 6 ký tự cuối của key làm mã nhận diện đuôi
         tail_len = min(6, len(full_key))
         current_key_tail = "..." + full_key[-tail_len:]
         
@@ -127,14 +134,12 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
                 contents=prompt
             )
             
-            # Thông báo thành công kèm đuôi key thực tế đang gánh request
             st.toast(f"🎲 Dịch thành công bằng Key đuôi [{current_key_tail}]", icon="⚡")
             return res.text.strip()
             
         except Exception as e:
             error_str = str(e).lower()
             
-            # Nếu lỗi quá tải (503), cho phép chờ 2s thử lại chính key đó 1 lần
             if "503" in error_str or "unavailable" in error_str or "high demand" in error_str:
                 time.sleep(2)
                 try:
@@ -144,7 +149,6 @@ def dich_van_ban(text_goc, huong_dich, ngon_ngu_dich="Tiếng Anh"):
                 except:
                     pass
             
-            # Nếu lỗi khác hoặc hết quota -> Báo toast và lập tức bốc sang key ngẫu nhiên tiếp theo
             st.toast(f"⚠️ Key đuôi [{current_key_tail}] lỗi/hết hạn, đang bốc key khác...", icon="🔄")
             continue
                 
@@ -176,7 +180,10 @@ if st.button("⬇️ Dịch sang Tiếng Việt & Đọc", use_container_width=T
             audio_data = tao_am_thanh(ket_qua_vi, ma_giong_vi)
             
             st.caption("🔊 Nghe thử giọng đọc Tiếng Việt:")
-            st.audio(audio_data, format="audio/mp3")
+            if audio_data:
+                st.audio(audio_data, format="audio/mp3")
+            else:
+                st.warning("Tạm thời dịch vụ giọng đọc đang bận, bạn vẫn có thể copy phần văn bản dịch ở trên!")
 
 st.divider()
 
@@ -202,4 +209,7 @@ if btn_dich_gui and msg_gui:
         audio_data_ngoai_ngu = tao_am_thanh(ket_qua_ngoai_ngu, ma_giong_ngoai_ngu)
         
         st.caption(f"🔊 Nghe thử giọng phát âm ({lang_select} - {gioi_tinh_doc}):")
-        st.audio(audio_data_ngoai_ngu, format="audio/mp3")
+        if audio_data_ngoai_ngu:
+            st.audio(audio_data_ngoai_ngu, format="audio/mp3")
+        else:
+            st.warning("Tạm thời dịch vụ giọng đọc đang bận, bạn vẫn có thể copy phần văn bản dịch ở trên!")
